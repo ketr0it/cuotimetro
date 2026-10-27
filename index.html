@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFD100">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Cuotímetro">
+<meta name="description" content="Calculadora independiente para estimar compras en cuotas.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Cuotímetro</title>
+<style>
+:root{
+  color-scheme:light;
+  /* Colores de marca: cambia --brand si quieres ajustar el amarillo */
+  --brand:#FFD100; --on-brand:#141414;
+  --bg:#F4F4F1; --surface:#FFFFFF; --ink:#141414; --muted:#6A6A64; --line:#E2E2DC;
+  --good:#1D7A43; --bad:#C42B1C; --chip:#E9E9E3;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0E0E0D; --surface:#1A1A18; --ink:#F2F2EE; --muted:#A2A29A; --line:#2D2D2A;
+    --good:#4CC47F; --bad:#FF7B6B; --chip:#25251F;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E0E0D; --surface:#1A1A18; --ink:#F2F2EE; --muted:#A2A29A; --line:#2D2D2A;
+  --good:#4CC47F; --bad:#FF7B6B; --chip:#25251F;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;-webkit-text-size-adjust:100%}
+body{
+  margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font:17px/1.4 ui-rounded,"SF Pro Rounded",-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;
+  font-variant-numeric:tabular-nums;-webkit-tap-highlight-color:transparent;
+  padding-top:env(safe-area-inset-top,0px);
+}
+button,input{font:inherit}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+
+.appbar{max-width:560px;margin:0 auto;padding:16px 20px 8px}
+.appbar h1{font-size:32px;font-weight:900;letter-spacing:-.025em;margin:0}
+main{max-width:560px;margin:0 auto;padding:4px 16px calc(100px + env(safe-area-inset-bottom,0px))}
+.view[hidden]{display:none}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:12px}
+.card h2{font-size:18px;margin:0 0 4px;letter-spacing:-.01em}
+.hint{color:var(--muted);font-size:15px;margin:0 0 12px}
+
+.acct{display:flex;width:100%;justify-content:space-between;align-items:center;gap:10px;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  font-size:15px;color:var(--ink);margin-bottom:12px;text-align:left;cursor:pointer;min-height:48px}
+.acct .chg{color:var(--muted);font-weight:700;flex:none}
+
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--chip);padding:4px;border-radius:14px}
+.modes button{font-size:14px;font-weight:800;border:0;border-radius:11px;padding:8px 4px;min-height:48px;
+  background:transparent;color:var(--muted);cursor:pointer;line-height:1.15}
+.modes button[aria-selected="true"]{background:var(--brand);color:var(--on-brand)}
+.mode-help{color:var(--muted);font-size:15px;margin:10px 4px 14px;min-height:2.8em}
+
+.price{display:block;background:var(--surface);border:2px solid var(--line);border-radius:18px;padding:12px 16px 8px;margin-bottom:12px;cursor:text}
+.price:focus-within{border-color:var(--ink)}
+.price .lbl{display:block;font-size:14px;color:var(--muted);font-weight:700}
+.money-in{display:flex;align-items:baseline;gap:4px;font-size:42px;font-weight:900;letter-spacing:-.02em}
+.money-in input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);padding:0;outline:none;font-weight:900}
+.money-in input::placeholder{color:var(--line)}
+
+.ticket{background:var(--brand);color:var(--on-brand);border-radius:22px;padding:18px 18px 14px;margin-bottom:12px}
+.t-label{font-size:16px;font-weight:800}
+.t-big{font-size:54px;font-weight:900;letter-spacing:-.035em;line-height:1.05;margin:2px 0 4px;word-break:break-word}
+.t-sub{font-size:18px;font-weight:700}
+.split{display:flex;height:12px;border-radius:7px;overflow:hidden;background:rgba(20,20,20,.16);margin:16px 0 6px}
+.split i{display:block;height:100%;background:var(--on-brand)}
+.legend{display:flex;justify-content:space-between;gap:10px;font-size:13px;font-weight:700}
+.perf{border:0;border-top:2px dashed rgba(20,20,20,.28);margin:14px 0 8px}
+.t-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:15px}
+.t-row b{font-weight:900;text-align:right}
+.t-note{font-size:14px;background:rgba(20,20,20,.08);border-radius:10px;padding:9px 11px;margin-top:8px}
+.t-foot{font-size:12px;opacity:.72;margin-top:10px}
+.empty{border:2px dashed var(--line);border-radius:22px;padding:28px 20px;text-align:center;color:var(--muted);margin-bottom:12px}
+
+.rows .row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line);font-size:15px}
+.rows .row:first-child{border-top:0}
+.rows .row span{color:var(--muted)}
+.rows .row b{font-weight:800;text-align:right}
+.try{font-size:13px;font-weight:800;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:6px 10px;margin-left:8px;cursor:pointer;min-height:34px}
+.good{color:var(--good)} .bad{color:var(--bad)}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-size:14px;font-weight:700;color:var(--muted);margin-bottom:6px}
+.field input{width:100%;font-size:20px;font-weight:800;color:var(--ink);background:var(--bg);
+  border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-height:52px}
+.field small{display:block;color:var(--muted);font-size:13px;margin-top:5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.levels{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.levels button{font-weight:900;font-size:20px;min-height:54px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.levels button[aria-pressed="true"]{background:var(--brand);color:var(--on-brand);border-color:var(--brand)}
+
+.meter{height:12px;border-radius:7px;background:var(--chip);overflow:hidden;margin:10px 0 8px}
+.meter i{display:block;height:100%;background:var(--brand)}
+
+.btn{display:block;width:100%;font-weight:900;font-size:17px;border:0;border-radius:14px;min-height:54px;background:var(--brand);color:var(--on-brand);cursor:pointer;margin-top:8px}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:transparent;color:var(--bad);border:1px solid var(--line)}
+
+.factor{font-size:44px;font-weight:900;letter-spacing:-.03em;line-height:1.1}
+.cal-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:15px}
+.cal-item small{display:block;color:var(--muted);font-size:13px}
+.cal-item button{color:var(--bad);background:none;border:0;min-height:44px;padding:0 6px;cursor:pointer;font-weight:700;font-size:14px}
+
+.rules{width:100%;border-collapse:collapse}
+.rules th{font-size:12px;color:var(--muted);font-weight:700;text-align:left;padding:4px}
+.rules td{padding:3px}
+.rules td:first-child{font-weight:900;width:2.2em;text-align:center}
+.rules input{width:100%;font-size:16px;font-weight:700;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px;min-height:42px}
+
+details.card summary{font-weight:800;font-size:17px;cursor:pointer;min-height:28px;list-style-position:inside}
+details.card p{font-size:15px;color:var(--muted)}
+
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(3,1fr);
+  background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{font-size:12px;font-weight:800;border:0;background:transparent;color:var(--muted);
+  padding:8px 0 8px;min-height:58px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.tabs svg{width:26px;height:26px}
+.tabs button[aria-current="page"]{color:var(--ink)}
+.tabs button[aria-current="page"] .hl{fill:var(--brand)}
+
+.sheet{position:fixed;inset:0;z-index:20;overflow:auto;background:var(--bg);
+  padding:calc(env(safe-area-inset-top,0px) + 20px) 20px calc(env(safe-area-inset-bottom,0px) + 24px)}
+.sheet[hidden]{display:none}
+.sheet-in{max-width:520px;margin:0 auto}
+.sheet h2{font-size:30px;font-weight:900;letter-spacing:-.025em;line-height:1.1;margin:10px 0 10px}
+.badge{width:64px;height:64px;border-radius:16px;background:var(--brand);display:grid;place-items:center}
+.legal{padding-left:20px;margin:0}
+.legal li{margin-bottom:10px;font-size:15px}
+.check{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin:16px 0 4px;font-weight:700;cursor:pointer}
+.check input{width:26px;height:26px;accent-color:#141414;flex:none;margin:0}
+.steps{display:flex;gap:6px;margin:4px 0 22px}
+.steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.steps i.on{background:var(--brand)}
+.big-in{width:100%;font-size:44px;font-weight:900;letter-spacing:-.02em;color:var(--ink);background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:10px 16px;min-height:72px}
+.big-in:focus{border-color:var(--ink);outline:none}
+@media (prefers-reduced-motion: no-preference){
+  .ticket{animation:pop .18s ease-out}
+  @keyframes pop{from{transform:scale(.985);opacity:.6}to{transform:none;opacity:1}}
+}
+</style>
+</head>
+<body>
+
+<header class="appbar"><h1 id="title">Calcular</h1></header>
+
+<main>
+  <!-- CALCULAR -->
+  <section id="v-calc" class="view">
+    <button class="acct" id="acct-pill" type="button"></button>
+
+    <div class="modes" role="tablist" aria-label="Qué quieres saber">
+      <button role="tab" data-modo="normal" type="button">Cuánto<br>me sale</button>
+      <button role="tab" data-modo="mmc" type="button">Con<br>MMC</button>
+      <button role="tab" data-modo="cero" type="button">Sin<br>inicial</button>
+    </div>
+    <p class="mode-help" id="mode-help"></p>
+
+    <label class="price">
+      <span class="lbl">Precio del producto</span>
+      <span class="money-in"><span>$</span><input id="precio" data-k="precio" inputmode="decimal" placeholder="0" autocomplete="off" enterkeyhint="done" aria-label="Precio del producto en dólares"></span>
+    </label>
+
+    <div id="ticket" aria-live="polite"></div>
+    <div id="techo"></div>
+  </section>
+
+  <!-- MI CUENTA -->
+  <section id="v-cuenta" class="view" hidden>
+    <div class="card">
+      <h2>Tu crédito</h2>
+      <p class="hint">Cópialo tal cual aparece en tu app de cuotas.</p>
+      <div class="field">
+        <label for="f-disp">Disponible ahora</label>
+        <input id="f-disp" data-k="disp" inputmode="decimal" placeholder="0">
+        <small>Si estás en negativo, escríbelo con el signo menos.</small>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label for="f-linea">Línea total</label>
+        <input id="f-linea" data-k="linea" inputmode="decimal" placeholder="Opcional">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Tu nivel</h2>
+      <p class="hint" id="lv-hint"></p>
+      <div class="levels" id="lv-chips"></div>
+    </div>
+
+    <div class="card">
+      <h2>Lo que has pagado</h2>
+      <p class="hint">Sirve para saber cuánto te falta para subir de nivel.</p>
+      <div class="grid2">
+        <div class="field"><label for="f-cuotas">Cuotas pagadas</label><input id="f-cuotas" data-k="cuotas" inputmode="numeric" placeholder="0"></div>
+        <div class="field"><label for="f-pagado">Total pagado ($)</label><input id="f-pagado" data-k="pagado" inputmode="decimal" placeholder="0"></div>
+      </div>
+    </div>
+
+    <div class="card" id="prog"></div>
+  </section>
+
+  <!-- AJUSTES -->
+  <section id="v-ajustes" class="view" hidden>
+    <div class="card" id="mmc-card"></div>
+
+    <div class="card">
+      <h2>Anotar una compra con MMC</h2>
+      <p class="hint">Mientras más compras reales anotes, más se acerca la app a lo que de verdad te deja hacer el MMC.</p>
+      <div class="grid2">
+        <div class="field"><label for="c-disp">Tenías disponible</label><input id="c-disp" inputmode="decimal" placeholder="217"></div>
+        <div class="field"><label for="c-saldo">Quedaste en</label><input id="c-saldo" inputmode="decimal" placeholder="-149"></div>
+      </div>
+      <div class="field"><label for="c-precio">Precio del producto</label><input id="c-precio" inputmode="decimal" placeholder="Opcional"></div>
+      <p class="hint" id="c-preview" style="margin:-4px 0 4px"></p>
+      <button class="btn" id="c-add" type="button" disabled>Guardar compra</button>
+    </div>
+
+    <div class="card">
+      <h2>Reglas por nivel</h2>
+      <p class="hint">Niveles 2 y 3 vienen de la ayuda oficial. Los demás son aproximados: corrígelos si tu app dice otra cosa.</p>
+      <table class="rules" id="rules"></table>
+      <div class="field" style="margin:14px 0 0">
+        <label for="f-ncuotas">Cuotas por compra</label>
+        <input id="f-ncuotas" data-k="nCuotas" inputmode="numeric" placeholder="3">
+      </div>
+    </div>
+
+    <details class="card">
+      <summary>¿Cómo se calcula?</summary>
+      <p>Cuando compras, una parte la pagas en el momento (la inicial) y el resto se divide en cuotas. Ese resto se descuenta de tu crédito disponible.</p>
+      <p>Cada nivel tiene una inicial mínima. Si tu crédito no alcanza para cubrir el resto, la inicial sube hasta cubrir la diferencia.</p>
+      <p>Con MMC, la app asume que puedes financiar un poco más de lo que tienes disponible. Cuánto más lo aprende de las compras que anotes.</p>
+      <p>“Sin inicial” te dice cuánto crédito necesitas para que todo el precio vaya a cuotas.</p>
+    </details>
+
+    <div class="card">
+      <button class="btn ghost" id="open-legal" type="button" style="margin-top:0">Ver aviso legal</button>
+      <button class="btn danger" id="wipe" type="button">Borrar todos mis datos</button>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" aria-label="Secciones">
+  <button data-tab="calc" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect class="hl" x="5" y="2.5" width="14" height="19" rx="3"/><path d="M8.5 7h7M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 16h.01M12 16h.01M15.5 16h.01"/></svg>
+    Calcular
+  </button>
+  <button data-tab="cuenta" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect class="hl" x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 9.5h19M6.5 15h4"/></svg>
+    Mi cuenta
+  </button>
+  <button data-tab="ajustes" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle class="hl" cx="16" cy="7" r="2.5"/><circle class="hl" cx="10" cy="17" r="2.5"/></svg>
+    Ajustes
+  </button>
+</nav>
+
+<!-- AVISO LEGAL -->
+<div class="sheet" id="waiver" hidden role="dialog" aria-modal="true" aria-labelledby="w-title">
+  <div class="sheet-in">
+    <div class="badge" aria-hidden="true">
+      <svg width="36" height="36" viewBox="0 0 36 36"><rect x="4" y="6" width="7" height="24" rx="2" fill="#141414"/><rect x="14" y="16" width="5" height="14" rx="2" fill="#141414"/><rect x="21" y="16" width="5" height="14" rx="2" fill="#141414"/><rect x="28" y="16" width="5" height="14" rx="2" fill="#141414"/></svg>
+    </div>
+    <h2 id="w-title">Antes de empezar</h2>
+    <ol class="legal">
+      <li><b>App independiente.</b> Cuotímetro no está afiliada, patrocinada, aprobada ni conectada con Cashea ni con sus tiendas aliadas. “Cashea” es una marca de su titular y se menciona solo para describir con qué compras puedes usar esta calculadora.</li>
+      <li><b>Son estimaciones.</b> Los resultados salen de los datos que tú escribes y de reglas aproximadas que pueden no coincidir con las actuales. No son una oferta, aprobación ni garantía de crédito. El monto real lo decide siempre la app oficial al momento de comprar.</li>
+      <li><b>No es asesoría financiera.</b> Decidir si compras y cómo pagas es tu responsabilidad.</li>
+      <li><b>Tus datos son tuyos.</b> No pedimos usuario ni contraseña y no nos conectamos a ninguna cuenta. Todo se guarda solo en este teléfono.</li>
+      <li><b>Sin garantías.</b> La app se ofrece tal cual. En la medida que la ley lo permita, sus autores no responden por pérdidas, cargos, recargos por mora ni decisiones tomadas con base en sus resultados.</li>
+    </ol>
+    <label class="check" id="w-check-wrap"><input type="checkbox" id="w-check"> Leí y acepto este aviso.</label>
+    <button class="btn" id="w-ok" type="button" disabled>Aceptar y continuar</button>
+    <button class="btn ghost" id="w-close" type="button" hidden>Cerrar</button>
+  </div>
+</div>
+
+<!-- PRIMEROS PASOS -->
+<div class="sheet" id="onb" hidden role="dialog" aria-modal="true">
+  <div class="sheet-in">
+    <div class="steps" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div id="onb-body"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var KEY = "cuotimetro-v1", WAIVER_V = 1;
+var DEF = {
+  accepted:0, setup:false, tab:"calc",
+  disp:"", linea:"", nivel:1, cuotas:"", pagado:"",
+  modo:"normal", precio:"", nCuotas:3,
+  cal:[],
+  rules:{
+    1:{ini:60, usd:"",  cu:""},
+    2:{ini:50, usd:120, cu:5},
+    3:{ini:40, usd:400, cu:10},
+    4:{ini:30, usd:"",  cu:""},
+    5:{ini:25, usd:"",  cu:""},
+    6:{ini:20, usd:"",  cu:""}
+  }
+};
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+var S = clone(DEF);
+try{
+  var raw = localStorage.getItem(KEY);
+  if(raw){ var p = JSON.parse(raw); for(var k in p){ S[k] = p[k]; } }
+}catch(e){}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+function $(s){ return document.querySelector(s); }
+function $$(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); }
+
+/* Acepta "1.234,56", "1234.56" o "1234,5" */
+function num(v){
+  if(v === null || v === undefined) return 0;
+  var s = String(v).trim().replace(/[\s$]/g,"").replace("−","-");
+  if(s.indexOf(",") > -1){ s = s.replace(/\./g,"").replace(",","."); }
+  var n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+function money(n){
+  var neg = n < -0.004; n = Math.abs(n);
+  var parts = (Math.round(n*100)/100).toFixed(2).split(".");
+  var a = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,".");
+  return (neg ? "−$" : "$") + a + (parts[1] === "00" ? "" : "," + parts[1]);
+}
+function fmtF(f){ return "×" + f.toFixed(2).replace(".",","); }
+function nC(){ var n = Math.round(num(S.nCuotas)); return n >= 1 ? n : 3; }
+function minIni(){ var v = num(S.rules[S.nivel].ini)/100; return Math.min(Math.max(v,0),0.95); }
+function calFactor(c){ var d = num(c.disp), s = num(c.saldo); return d > 0 ? (d - s)/d : 0; }
+function factor(){
+  var fs = S.cal.map(calFactor).filter(function(f){ return f >= 1; });
+  if(!fs.length) return 1;
+  return fs.reduce(function(a,b){ return a+b; },0)/fs.length;
+}
+function plan(P, disp, mi, f){
+  var maxFin = Math.max(disp,0)*f;
+  var finMin = P*(1-mi), fin, ini, subio = false;
+  if(finMin <= maxFin){ fin = finMin; ini = P*mi; }
+  else { fin = maxFin; ini = P - maxFin; subio = true; }
+  return { fin:fin, ini:ini, subio:subio, saldo:disp - fin, maxFin:maxFin, precioMax:maxFin/(1-mi) };
+}
+
+/* ---------- Navegación ---------- */
+var TABS = { calc:"Calcular", cuenta:"Mi cuenta", ajustes:"Ajustes" };
+function go(t){
+  Object.keys(TABS).forEach(function(k){
+    document.getElementById("v-"+k).hidden = k !== t;
+    document.querySelector('[data-tab="'+k+'"]').setAttribute("aria-current", k === t ? "page" : "false");
+  });
+  $("#title").textContent = TABS[t];
+  S.tab = t; save(); window.scrollTo(0,0);
+}
+$$(".tabs button").forEach(function(b){ b.addEventListener("click", function(){ go(b.dataset.tab); }); });
+
+/* ---------- Calcular ---------- */
+var HELP = {
+  normal:"Lo que pagas hoy y en cuotas, con la inicial mínima de tu nivel.",
+  mmc:"Igual, pero con el margen extra del MMC que la app aprende de tus compras anteriores.",
+  cero:"Cuánto crédito disponible necesitas para llevártelo sin pagar nada hoy."
+};
+$$(".modes button").forEach(function(b){
+  b.addEventListener("click", function(){ S.modo = b.dataset.modo; save(); renderCalc(); });
+});
+$("#acct-pill").addEventListener("click", function(){ go("cuenta"); });
+
+function renderCalc(){
+  var d = num(S.disp), lv = S.nivel, mi = minIni(), f = factor(), P = num(S.precio), n = nC();
+  $("#acct-pill").innerHTML = S.setup
+    ? '<span><b>' + money(d) + '</b> disponibles, nivel ' + lv + '</span><span class="chg">Cambiar</span>'
+    : '<span>Configura tu cuenta para empezar</span><span class="chg">Ir</span>';
+  $$(".modes button").forEach(function(b){ b.setAttribute("aria-selected", b.dataset.modo === S.modo); });
+  $("#mode-help").textContent = HELP[S.modo];
+
+  var tk = $("#ticket"), te = $("#techo");
+  if(!(P > 0)){
+    tk.innerHTML = '<div class="empty">Escribe el precio y aquí verás el resultado.</div>';
+  } else if(S.modo === "cero"){
+    var need = P/f, ok = d >= need, gap = Math.abs(d - need);
+    var pct = need > 0 ? Math.max(0, Math.min(d/need,1))*100 : 100;
+    tk.innerHTML =
+      '<div class="ticket">'+
+        '<div class="t-label">Para llevártelo sin pagar nada hoy necesitas</div>'+
+        '<div class="t-big">' + money(need) + '</div>'+
+        '<div class="t-sub">' + (ok ? '¡Te alcanza! Te sobran ' + money(gap) + '.' : 'Te faltan ' + money(gap) + '.') + '</div>'+
+        '<div class="split" aria-hidden="true"><i style="width:' + pct + '%"></i></div>'+
+        '<div class="legend"><span>Tienes ' + money(d) + '</span><span>Necesitas ' + money(need) + '</span></div>'+
+        '<hr class="perf">'+
+        '<div class="t-row"><span>Pagarías ' + n + ' cuotas de</span><b>' + money(P/n) + '</b></div>'+
+        '<div class="t-row"><span>Tu crédito quedaría en</span><b>' + money(d - P) + '</b></div>'+
+        '<div class="t-row"><span>Sin MMC necesitarías</span><b>' + money(P) + '</b></div>'+
+        (f === 1 ? '<div class="t-note">Aún no tienes compras MMC anotadas, así que esto es igual que sin MMC. Anótalas en Ajustes.</div>' : '')+
+        '<div class="t-foot">Usa tu MMC de ' + fmtF(f) + ', calculado con tus compras anteriores. Estimado: el monto real lo decide la app oficial.</div>'+
+      '</div>';
+  } else {
+    var fx = S.modo === "mmc" ? f : 1;
+    var r = plan(P, d, mi, fx);
+    var pctHoy = Math.round(r.ini/P*100);
+    var notes = "";
+    if(!S.setup) notes += '<div class="t-note">Configura tu crédito en Mi cuenta para un resultado real.</div>';
+    else if(r.subio) notes += '<div class="t-note">Tu crédito no alcanza con la inicial mínima de ' + Math.round(mi*100) + '%, así que la inicial sube a ' + pctHoy + '%.</div>';
+    if(r.saldo < -0.004) notes += '<div class="t-note">Tu crédito quedaría en negativo. Mientras siga así, no tendrás crédito para otra compra.</div>';
+    tk.innerHTML =
+      '<div class="ticket">'+
+        '<div class="t-label">Hoy pagas</div>'+
+        '<div class="t-big">' + money(r.ini) + '</div>'+
+        '<div class="t-sub">' + (r.fin > 0.004 ? 'y después ' + n + ' cuotas de ' + money(r.fin/n) : 'y nada en cuotas') + '</div>'+
+        '<div class="split" aria-hidden="true"><i style="width:' + pctHoy + '%"></i></div>'+
+        '<div class="legend"><span>Hoy ' + pctHoy + '%</span><span>En cuotas ' + (100 - pctHoy) + '%</span></div>'+
+        '<hr class="perf">'+
+        '<div class="t-row"><span>Precio del producto</span><b>' + money(P) + '</b></div>'+
+        '<div class="t-row"><span>Total en cuotas</span><b>' + money(r.fin) + '</b></div>'+
+        '<div class="t-row"><span>Tu crédito quedaría en</span><b>' + money(r.saldo) + '</b></div>'+
+        notes+
+        '<div class="t-foot">Estimado. El monto real lo decide la app oficial al comprar.</div>'+
+      '</div>';
+  }
+
+  if(S.setup && S.modo !== "cero" && d > 0){
+    var r0 = plan(0, d, mi, S.modo === "mmc" ? f : 1);
+    te.innerHTML =
+      '<div class="card"><h2>Lo máximo que puedes llevarte</h2>'+
+      '<p class="hint">Con ' + money(d) + ' disponibles en nivel ' + lv + (S.modo === "mmc" ? ', usando MMC' : '') + '.</p>'+
+      '<div class="rows">'+
+        '<div class="row"><span>Pagando la inicial mínima (' + Math.round(mi*100) + '%)</span><b>' + money(r0.precioMax) + '<button class="try" type="button" data-p="' + r0.precioMax.toFixed(2) + '">Probar</button></b></div>'+
+        '<div class="row"><span>Sin pagar nada hoy</span><b>' + money(r0.maxFin) + '<button class="try" type="button" data-p="' + r0.maxFin.toFixed(2) + '">Probar</button></b></div>'+
+      '</div></div>';
+    $$(".try").forEach(function(b){
+      b.addEventListener("click", function(){
+        S.precio = b.dataset.p.replace(".",","); $("#precio").value = S.precio; save(); renderCalc();
+        window.scrollTo({top:0, behavior:"smooth"});
+      });
+    });
+  } else { te.innerHTML = ""; }
+}
+
+/* ---------- Mi cuenta ---------- */
+function levelChips(el, onPick){
+  el.innerHTML = "";
+  for(var i = 1; i <= 6; i++){
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = i; b.dataset.lv = i;
+    b.setAttribute("aria-label", "Nivel " + i);
+    b.setAttribute("aria-pressed", S.nivel === i);
+    b.addEventListener("click", function(){
+      S.nivel = Number(this.dataset.lv); save();
+      $$('[data-lv]').forEach(function(x){ x.setAttribute("aria-pressed", Number(x.dataset.lv) === S.nivel); });
+      if(onPick) onPick();
+      renderAll();
+    });
+    el.appendChild(b);
+  }
+}
+function renderCuenta(){
+  $("#lv-hint").textContent = "En nivel " + S.nivel + " la inicial mínima es " + Math.round(minIni()*100) + "%.";
+  var lv = S.nivel, nx = S.rules[lv+1], el = $("#prog");
+  if(!nx){ el.innerHTML = '<h2>Estás en el nivel más alto que conoce la app</h2><p class="hint" style="margin:0">Si tu app muestra más niveles, avísale a quien te pasó esta calculadora.</p>'; return; }
+  var pu = num(S.pagado), pc = num(S.cuotas), nu = num(nx.usd), ncu = num(nx.cu);
+  if(!(nu > 0) && !(ncu > 0)){
+    el.innerHTML = '<h2>Hacia el nivel ' + (lv+1) + '</h2><p class="hint" style="margin:0">Todavía no sabemos qué pide el nivel ' + (lv+1) + '. Cuando lo veas en tu app, anótalo en Ajustes.</p>';
+    return;
+  }
+  var fu = nu > 0 ? Math.min(pu/nu,1) : 0, fc = ncu > 0 ? Math.min(pc/ncu,1) : 0, best = Math.max(fu,fc);
+  var parts = [];
+  if(nu > 0 && pu < nu) parts.push("pagar " + money(nu - pu) + " más");
+  if(ncu > 0 && pc < ncu){ var faltan = Math.ceil(ncu - pc); parts.push("pagar " + faltan + " cuota" + (faltan === 1 ? "" : "s") + " más"); }
+  var txt = best >= 1
+    ? "Según las reglas guardadas, ya cumples lo que pide el nivel " + (lv+1) + "."
+    : "Te falta " + parts.join(" o ") + ". Lo que llegue primero.";
+  el.innerHTML = '<h2>Hacia el nivel ' + (lv+1) + '</h2>'+
+    '<div class="meter" aria-hidden="true"><i style="width:' + Math.round(best*100) + '%"></i></div>'+
+    '<p class="hint" style="margin:0">' + txt + '</p>';
+}
+
+/* ---------- Ajustes ---------- */
+function renderAjustes(){
+  var f = factor();
+  var list = S.cal.map(function(c){
+    var fi = calFactor(c), extra = "";
+    var P = num(c.precio), fin = num(c.disp) - num(c.saldo);
+    if(P > 0) extra = "<small>Precio " + money(P) + ", inicial " + money(P - fin) + " (" + Math.round((P - fin)/P*100) + "%)</small>";
+    return '<div class="cal-item"><div>Tenías ' + money(num(c.disp)) + ', quedaste en ' + money(num(c.saldo)) +
+      '<small>Te dejó financiar ' + money(fin) + ' (' + fmtF(fi) + ')</small>' + extra + '</div>'+
+      '<button type="button" data-del="' + c.id + '">Quitar</button></div>';
+  }).join("");
+  $("#mmc-card").innerHTML =
+    '<h2>Tu MMC</h2>'+
+    '<div class="factor">' + fmtF(f) + '</div>'+
+    '<p class="hint">' + (f > 1
+      ? 'Por cada $1 que tenías disponible, el MMC te ha dejado financiar ' + money(f) + '.'
+      : 'Anota una compra con MMC para que la app aprenda cuánto te deja financiar.') + '</p>'+
+    (list ? '<div>' + list + '</div>' : '');
+  $$("[data-del]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var id = Number(b.dataset.del);
+      S.cal = S.cal.filter(function(c){ return c.id !== id; }); save(); renderAll();
+    });
+  });
+
+  var h = '<tr><th>Nivel</th><th>Inicial %</th><th>Sube con $</th><th>o cuotas</th></tr>';
+  for(var n = 1; n <= 6; n++){
+    var r = S.rules[n];
+    h += '<tr><td>' + n + '</td>'+
+      '<td><input data-n="' + n + '" data-f="ini" inputmode="decimal" value="' + r.ini + '" aria-label="Inicial nivel ' + n + '"></td>'+
+      '<td><input data-n="' + n + '" data-f="usd" inputmode="decimal" value="' + r.usd + '" placeholder="?" aria-label="Pago para subir a nivel ' + n + '"' + (n === 1 ? ' disabled' : '') + '></td>'+
+      '<td><input data-n="' + n + '" data-f="cu" inputmode="numeric" value="' + r.cu + '" placeholder="?" aria-label="Cuotas para subir a nivel ' + n + '"' + (n === 1 ? ' disabled' : '') + '></td></tr>';
+  }
+  var t = $("#rules");
+  if(!t.dataset.built){
+    t.innerHTML = h; t.dataset.built = "1";
+    $$("#rules input").forEach(function(inp){
+      inp.addEventListener("input", function(){
+        S.rules[inp.dataset.n][inp.dataset.f] = inp.value === "" ? "" : num(inp.value);
+        save(); renderCalc(); renderCuenta();
+      });
+    });
+  }
+}
+function calPreview(){
+  var d = num($("#c-disp").value), s = $("#c-saldo").value, P = num($("#c-precio").value);
+  var ok = d > 0 && s !== "";
+  $("#c-add").disabled = !ok;
+  if(!ok){ $("#c-preview").textContent = ""; return; }
+  var fin = d - num(s), txt = "Te dejó financiar " + money(fin) + " (" + fmtF(fin/d) + ").";
+  if(P > 0) txt += " Pagaste " + money(P - fin) + " de inicial.";
+  $("#c-preview").textContent = txt;
+}
+["#c-disp","#c-saldo","#c-precio"].forEach(function(id){ $(id).addEventListener("input", calPreview); });
+$("#c-add").addEventListener("click", function(){
+  S.cal.push({ id:Date.now(), disp:num($("#c-disp").value), saldo:num($("#c-saldo").value), precio:$("#c-precio").value });
+  ["#c-disp","#c-saldo","#c-precio"].forEach(function(id){ $(id).value = ""; });
+  save(); calPreview(); renderAll();
+});
+$("#wipe").addEventListener("click", function(){
+  if(confirm("¿Borrar tu cuenta, compras anotadas y ajustes de este teléfono?")){
+    try{ localStorage.removeItem(KEY); }catch(e){}
+    location.reload();
+  }
+});
+
+/* ---------- Campos enlazados ---------- */
+$$("[data-k]").forEach(function(inp){
+  inp.addEventListener("input", function(){ S[inp.dataset.k] = inp.value; save(); renderAll(); });
+});
+$("#precio").addEventListener("keydown", function(e){ if(e.key === "Enter") this.blur(); });
+function syncInputs(){
+  $$("[data-k]").forEach(function(inp){ inp.value = S[inp.dataset.k]; });
+  levelChips($("#lv-chips"));
+}
+
+function renderAll(){ renderCalc(); renderCuenta(); renderAjustes(); }
+
+/* ---------- Aviso legal ---------- */
+function openWaiver(readOnly){
+  $("#waiver").hidden = false;
+  $("#w-check-wrap").hidden = readOnly; $("#w-ok").hidden = readOnly; $("#w-close").hidden = !readOnly;
+}
+$("#w-check").addEventListener("change", function(){ $("#w-ok").disabled = !this.checked; });
+$("#w-ok").addEventListener("click", function(){
+  S.accepted = WAIVER_V; save(); $("#waiver").hidden = true;
+  if(!S.setup) startOnb();
+});
+$("#w-close").addEventListener("click", function(){ $("#waiver").hidden = true; });
+$("#open-legal").addEventListener("click", function(){ openWaiver(true); });
+
+/* ---------- Primeros pasos ---------- */
+var step = 0;
+function startOnb(){ step = 0; $("#onb").hidden = false; renderOnb(); }
+function renderOnb(){
+  $$(".steps i").forEach(function(x,i){ x.className = i <= step ? "on" : ""; });
+  var b = $("#onb-body");
+  if(step === 0){
+    b.innerHTML =
+      '<h2>¿Cuánto crédito tienes disponible ahora?</h2>'+
+      '<p class="hint">Es el número que tu app de cuotas muestra como disponible.</p>'+
+      '<input class="big-in" id="o-disp" inputmode="decimal" placeholder="$0" value="' + S.disp + '" aria-label="Crédito disponible">'+
+      '<button class="btn" id="o-next" type="button" style="margin-top:16px">Siguiente</button>';
+    var inp = $("#o-disp"), nx = $("#o-next");
+    var chk = function(){ nx.disabled = inp.value.trim() === ""; };
+    inp.addEventListener("input", function(){ S.disp = inp.value; save(); chk(); });
+    nx.addEventListener("click", function(){ step = 1; renderOnb(); });
+    chk(); setTimeout(function(){ inp.focus(); }, 50);
+  } else if(step === 1){
+    b.innerHTML =
+      '<h2>¿En qué nivel estás?</h2>'+
+      '<p class="hint">Cada nivel pide una inicial distinta. Si no lo sabes, elige 1.</p>'+
+      '<div class="levels" id="o-lv"></div>'+
+      '<button class="btn" id="o-next" type="button" style="margin-top:16px">Siguiente</button>'+
+      '<button class="btn ghost" id="o-back" type="button">Atrás</button>';
+    levelChips($("#o-lv"));
+    $("#o-next").addEventListener("click", function(){ step = 2; renderOnb(); });
+    $("#o-back").addEventListener("click", function(){ step = 0; renderOnb(); });
+  } else {
+    b.innerHTML =
+      '<h2>¿Cuánto has pagado hasta ahora?</h2>'+
+      '<p class="hint">Opcional. Sirve para decirte cuánto te falta para subir de nivel.</p>'+
+      '<div class="grid2">'+
+        '<div class="field"><label for="o-cuotas">Cuotas pagadas</label><input id="o-cuotas" inputmode="numeric" placeholder="0" value="' + S.cuotas + '"></div>'+
+        '<div class="field"><label for="o-pagado">Total pagado ($)</label><input id="o-pagado" inputmode="decimal" placeholder="0" value="' + S.pagado + '"></div>'+
+      '</div>'+
+      '<button class="btn" id="o-done" type="button">Empezar</button>'+
+      '<button class="btn ghost" id="o-back" type="button">Atrás</button>';
+    $("#o-cuotas").addEventListener("input", function(){ S.cuotas = this.value; save(); });
+    $("#o-pagado").addEventListener("input", function(){ S.pagado = this.value; save(); });
+    $("#o-back").addEventListener("click", function(){ step = 1; renderOnb(); });
+    $("#o-done").addEventListener("click", function(){
+      S.setup = true; save(); $("#onb").hidden = true;
+      syncInputs(); renderAll(); go("calc");
+      setTimeout(function(){ $("#precio").focus(); }, 100);
+    });
+  }
+}
+
+/* ---------- Arranque ---------- */
+syncInputs(); renderAll(); go(S.tab || "calc");
+if(S.accepted < WAIVER_V) openWaiver(false);
+else if(!S.setup) startOnb();
+
+if("serviceWorker" in navigator && /^https?:/.test(location.protocol)){
+  window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
+}
+})();
+</script>
+</body>
+</html>
